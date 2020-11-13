@@ -1,0 +1,11 @@
+<launch>
+  <rosparam file="$(find veidesbot_control)/config/control.yaml" command="load" />
+
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" ns="/veidesbot"
+    args="joint_state_controller right_wheel_effort_controller left_wheel_effort_controller" />
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen">
+    <param name="robot_description" command="$(find xacro)/xacro '$(find veidesbot_description)/urdf/veidesbot.xacro'" />
+    <remap from="/joint_states" to="/veidesbot/joint_states" />
+  </node>
+</launch>

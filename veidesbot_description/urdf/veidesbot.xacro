@@ -1,0 +1,121 @@
+<?xml version="1.0" ?>
+
+<robot name="veidesbot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:property name="PI" value="3.1415926535897931" />
+
+  <xacro:property name="chassisHeight" value="0.03" />
+  <xacro:property name="chassisRadius" value="0.035" />
+  <xacro:property name="chassisMass" value="30" />
+
+  <xacro:property name="casterRadius" value="0.0035" />
+  <xacro:property name="casterMass" value="5" />
+
+  <xacro:property name="wheelWidth" value="0.008" />
+  <xacro:property name="wheelRadius" value="0.015" />
+  <xacro:property name="wheelPos" value="0.05" />
+  <xacro:property name="wheelMass" value="1" />
+
+  <xacro:property name="cameraSize" value="0.005" />
+  <xacro:property name="cameraMass" value="2" />
+
+  <xacro:property name="sensorSize" value="0.025" />
+  <xacro:property name="sensorMass" value="1" />
+
+  <xacro:property name="zZero" value="${casterRadius*2+0.00001}" />
+
+  <xacro:include filename="$(find veidesbot_description)/urdf/veidesbot.gazebo" />
+  <xacro:include filename="$(find veidesbot_description)/urdf/materials.xacro" />
+  <xacro:include filename="$(find veidesbot_description)/urdf/macros.xacro" />
+
+  <link name="footprint" />
+
+  <joint name="base_joint" type="fixed">
+    <origin xyz="0 0 ${zZero}" rpy="0 0 0" />
+    <parent link="footprint" />
+    <child link="chassis" />
+  </joint>
+
+  <link name="chassis">
+    <collision>
+      <origin xyz="0 0 ${wheelRadius}" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="${chassisHeight}" radius="${chassisRadius}" />
+      </geometry>
+    </collision>
+
+    <visual>
+      <origin xyz="0 0 ${wheelRadius}" rpy="0 0 0" />
+      <geometry>
+        <cylinder length="${chassisHeight}" radius="${chassisRadius}" />
+      </geometry>
+    </visual>
+
+    <inertial>
+      <origin xyz="0 0 ${wheelRadius}" rpy="0 0 0" />
+      <mass value="${chassisMass}" />
+      <xacro:cylinder_inertia m="${chassisMass}" r="${chassisRadius}" h="${chassisHeight}" />
+    </inertial>
+  </link>
+
+  <xacro:wheel lr="left" />
+  <xacro:wheel lr="right" />
+
+  <xacro:caster_wheel rf="rear" />
+  <xacro:caster_wheel rf="front" />
+
+  <joint name="camera_joint" type="fixed">
+    <origin xyz="${chassisRadius-cameraSize/2} 0 ${chassisHeight+cameraSize/2}" rpy="0 0 0" />
+    <parent link="chassis" />
+    <child link="camera" />
+  </joint>
+
+  <link name="camera">
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="${cameraSize} ${cameraSize} ${cameraSize}" />
+      </geometry>
+    </collision>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="${cameraSize} ${cameraSize} ${cameraSize}" />
+      </geometry>
+      <material name="blue" />
+    </visual>
+
+    <inertial>
+      <mass value="${cameraMass}" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <xacro:box_inertia m="${cameraMass}" x="${cameraSize}" y="${cameraSize}" z="${cameraSize}" />
+    </inertial>
+  </link>
+
+  <joint name="sonar_front_joint" type="fixed">
+    <axis xyz="0 1 0" />
+    <origin rpy="0 0 0" xyz="${chassisRadius} 0 ${chassisHeight-sensorSize/2}" />
+    <parent link="chassis" />
+    <child link="base_sonar_front" />
+  </joint>
+
+  <link name="base_sonar_front">
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.01 0.01 0.01" />
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.01 0.01 0.01" />
+      </geometry>
+    </visual>
+    <inertial>
+      <mass value="${sensorMass}" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <xacro:box_inertia m="${sensorMass}" x="${sensorSize}" y="${sensorSize}" z="${sensorSize}" />
+    </inertial>
+  </link>
+</robot>

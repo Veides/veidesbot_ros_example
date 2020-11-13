@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>veidesbot_platform</name>
+  <version>0.1.0</version>
+  <description>VeidesBot's platform layer performing bot logic based on hardware/simulation data</description>
+
+  <maintainer email="contact@veides.io">Veides Team</maintainer>
+  <author email="contact@veides.io">Veides Team</author>
+
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>rospy</depend>
+</package>

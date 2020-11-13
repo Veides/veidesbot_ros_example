@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>veidesbot_gazebo</name>
+  <version>0.1.0</version>
+  <description>Gazebo world used in VeidesBot simulation including RViz config</description>
+
+  <maintainer email="contact@veides.io">Veides Team</maintainer>
+  <author email="contact@veides.io">Veides Team</author>
+
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>gazebo_ros</depend>
+
+  <exec_depend>veidesbot_platform</exec_depend>
+</package>

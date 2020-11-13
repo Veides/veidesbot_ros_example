@@ -1,0 +1,3 @@
+[submodule "veides_agent_ros"]
+	path = veides_agent_ros
+	url = https://github.com/Veides/veides_agent_ros.git

@@ -1,0 +1,13 @@
+<launch>
+  <node name="veidesbot_platform_node" pkg="veidesbot_platform" type="veidesbot_platform_node" output='screen'>
+    <param name="agent_name" value="$(env VEIDES_AGENT_NAME)" />
+  </node>
+
+  <include file="$(find veides_agent_ros)/launch/veides_agent.launch">
+    <arg name="veides_client_host" value="$(env VEIDES_CLIENT_HOST)" />
+    <arg name="veides_agent_name" value="$(env VEIDES_AGENT_NAME)" />
+    <arg name="veides_agent_client_id" value="$(env VEIDES_AGENT_CLIENT_ID)" />
+    <arg name="veides_agent_key" value="$(env VEIDES_AGENT_KEY)" />
+    <arg name="veides_agent_secret_key" value="$(env VEIDES_AGENT_SECRET_KEY)" />
+  </include>
+</launch>

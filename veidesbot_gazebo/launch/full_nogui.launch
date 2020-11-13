@@ -1,0 +1,14 @@
+<launch>
+  <param name="robot_description" command="$(find xacro)/xacro '$(find veidesbot_description)/urdf/veidesbot.xacro'" />
+	
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">	    
+    <arg name="world_name" value="$(find veidesbot_gazebo)/worlds/veidesbot.world"/>
+    <arg name="gui" value="false"/>
+  </include>
+
+  <node name="veidesbot_spawn" pkg="gazebo_ros" type="spawn_model" output="screen" args="-urdf -param robot_description -model veidesbot" />
+  
+  <include file="$(find veidesbot_control)/launch/control.launch" />
+
+  <include file="$(find veidesbot_platform)/launch/veidesbot.launch" />
+</launch>

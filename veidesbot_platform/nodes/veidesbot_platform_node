@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import rospy
+from geometry_msgs.msg import Twist
+from sensor_msgs.msg import Range
+from veidesbot_platform import VeidesBotPlatform
+from veides_agent_ros.msg import Action
+from veides_agent_ros.srv import (
+    Facts,
+    ActionCompleted,
+    Trails,
+    Event,
+)
+
+VEIDES_FACTS_SERVICE = '/veides/agent/veidesbot/facts'
+VEIDES_TRAILS_SERVICE = '/veides/agent/veidesbot/trails'
+VEIDES_EVENT_SERVICE = '/veides/agent/veidesbot/event'
+VEIDES_ACTION_COMPLETED_SERVICE = '/veides/agent/veidesbot/action_completed'
+
+
+class VeidesBotPlatformNode:
+    def __init__(self):
+        rospy.init_node('veidesbot_platform_node', log_level=rospy.INFO)
+
+        required_services = [
+            VEIDES_FACTS_SERVICE,
+            VEIDES_ACTION_COMPLETED_SERVICE,
+            VEIDES_TRAILS_SERVICE,
+            VEIDES_EVENT_SERVICE,
+        ]
+
+        for service in required_services:
+            rospy.loginfo("Waiting for service {}".format(service))
+            rospy.wait_for_service(service)
+            rospy.loginfo("Service {} is ready".format(service))
+
+        veides_facts = rospy.ServiceProxy(VEIDES_FACTS_SERVICE, Facts)
+        veides_trails = rospy.ServiceProxy(VEIDES_TRAILS_SERVICE, Trails)
+        veides_event = rospy.ServiceProxy(VEIDES_EVENT_SERVICE, Event)
+
+        twist = rospy.Publisher('/veidesbot/cmd_vel', Twist, queue_size=5)
+
+        self.action_completed = rospy.ServiceProxy(VEIDES_ACTION_COMPLETED_SERVICE, ActionCompleted)
+
+        self.bot = VeidesBotPlatform(twist, veides_facts, veides_trails, veides_event)
+
+        rospy.Subscriber('/veides/agent/veidesbot/action_received', Action, self.on_action)
+        rospy.Subscriber('/veidesbot/distance_sensor', Range, self.on_distance_updated)
+
+        self.tick = 0
+
+    def on_action(self, action):
+        self.bot.on_action(action.name, action.entities)
+        self.action_completed(action.name)
+
+    def on_distance_updated(self, data):
+        self.bot.on_distance_updated(data.range)
+
+    def loop(self):
+        rospy.sleep(0.1)
+
+        self.tick += 1
+
+        if self.tick % 10 == 0:
+            seconds = self.tick / 10
+            self.bot.on_tick(seconds)
+
+
+if __name__ == '__main__':
+    node = VeidesBotPlatformNode()
+
+    while not rospy.is_shutdown():
+        try:
+            node.loop()
+        except rospy.ROSInterruptException:
+            pass
