@@ -29,21 +29,24 @@ class VeidesBotPlatform:
         self.veides_event = veides_event
 
         self.last_range = None
+        self.speed_level = 0
 
-        # send ready event
-        self.veides_event('ready_to_rock')
-        # send initial facts
+        # Send initial facts
         self.veides_facts([
-            Fact(name='battery_level', value='full')
+            Fact(name='battery_level', value='full'),
+            Fact(name='charging', value='no'),
         ])
 
+        self.set_normal_speed()
+
+        # Send ready event
+        self.veides_event('ready_to_rock')
+
     def on_tick(self, seconds):
-        msg = TrailsRequest()
-        msg.trails = [
-            Trail(name='up_time', value=str(seconds))
-        ]
-        # send example trail (to see the value you need to setup dashboard first)
-        self.veides_trails(msg)
+        # Send a trail
+        self.veides_trails([
+            Trail(name='uptime', value=str(seconds))
+        ])
 
     def stop(self, *_):
         msg = self._create_twist()
@@ -51,10 +54,8 @@ class VeidesBotPlatform:
         self.twist.publish(msg)
 
     def move_forward(self, *_):
-        speed = 0.3
-
         msg = self._create_twist()
-        msg.linear.x = speed
+        msg.linear.x = self.speed_level
 
         self.twist.publish(msg)
 
@@ -66,6 +67,22 @@ class VeidesBotPlatform:
         self._turn(1)
         self.current_action_state = Stop()
 
+    def set_low_speed(self, *_):
+        self.speed_level = 0.15
+
+        # Send a trail
+        self.veides_trails([
+            Trail(name='speed_level', value='low')
+        ])
+
+    def set_normal_speed(self, *_):
+        self.speed_level = 0.3
+
+        # Send a trail
+        self.veides_trails([
+            Trail(name='speed_level', value='normal')
+        ])
+
     def on_distance_updated(self, updated_range):
         new_range = round(updated_range, 1)
 
@@ -73,7 +90,7 @@ class VeidesBotPlatform:
 
         if new_state != self.obstacle_state:
             try:
-                # send facts
+                # Send facts update
                 self.veides_facts([
                     Fact(name=new_state.get_type(), value=new_state.get_name())
                 ])
@@ -87,24 +104,33 @@ class VeidesBotPlatform:
             msg.trails = [
                 Trail(name='distance_sensor', value=str(new_range))
             ]
-            # send trail (to see the value you need to setup dashboard first)
+            # Send a trail
             self.veides_trails(msg)
 
             self.last_range = new_range
 
-    def on_action(self, data, entities):
-        new_state = self.current_action_state.on_event('current_action', data)
+    def on_set_action(self, action_name, entities):
+        action = getattr(self, action_name, None)
+        result = None
+
+        if action is not None:
+            result = action(entities)
+
+        return result
+
+    def on_action(self, action_name, entities):
+        new_state = self.current_action_state.on_event('current_action', action_name)
         result = None
 
         if new_state != self.current_action_state:
             self.current_action_state = new_state
 
-            if hasattr(self, data):
-                action = getattr(self, data)
+            if hasattr(self, action_name):
+                action = getattr(self, action_name)
                 result = action(entities)
 
             try:
-                # send facts when bot state changed
+                # Send facts update when bot state changed
                 self.veides_facts([
                     Fact(name=new_state.get_type(), value=new_state.get_name())
                 ])
@@ -117,7 +143,7 @@ class VeidesBotPlatform:
         # TODO: reimplement to be odometry based
         self.stop()
 
-        speed = 60
+        speed = self.speed_level * 200
 
         angular_speed = speed * PI / 180
 

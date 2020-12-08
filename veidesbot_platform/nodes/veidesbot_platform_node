@@ -51,7 +51,13 @@ class VeidesBotPlatformNode:
         self.tick = 0
 
     def on_action(self, action):
-        self.bot.on_action(action.name, action.entities)
+        action_name = action.name
+
+        if action_name.startswith('set_'):
+            self.bot.on_set_action(action_name, action.entities)
+        else:
+            self.bot.on_action(action_name, action.entities)
+
         self.action_completed(action.name)
 
     def on_distance_updated(self, data):
