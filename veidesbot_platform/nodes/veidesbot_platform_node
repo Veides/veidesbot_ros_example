@@ -2,21 +2,31 @@
 # -*- coding: utf-8 -*-
 
 import rospy
+import json
+from datetime import datetime
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Range
 from veidesbot_platform import VeidesBotPlatform
-from veides_agent_ros.msg import Action
+from veidesbot_platform.msg import ShutdownMethod
+from veidesbot_platform.srv import ShutdownMethodCompleted
+from veides_agent_ros.msg import Action, Method
 from veides_agent_ros.srv import (
-    Facts,
     ActionCompleted,
-    Trails,
     Event,
+    Facts,
+    MethodCompleted,
+    MethodCompletedRequest,
+    RegisterMethod,
+    RegisterMethodRequest,
+    Trails,
 )
 
 VEIDES_FACTS_SERVICE = '/veides/agent/veidesbot/facts'
 VEIDES_TRAILS_SERVICE = '/veides/agent/veidesbot/trails'
 VEIDES_EVENT_SERVICE = '/veides/agent/veidesbot/event'
 VEIDES_ACTION_COMPLETED_SERVICE = '/veides/agent/veidesbot/action_completed'
+VEIDES_METHOD_COMPLETED_SERVICE = '/veides/agent/veidesbot/method_completed'
+VEIDES_SHUTDOWN_METHOD_COMPLETED_SERVICE = '/veides/agent/veidesbot/method_completed/shutdown'
 
 
 class VeidesBotPlatformNode:
@@ -28,12 +38,11 @@ class VeidesBotPlatformNode:
             VEIDES_ACTION_COMPLETED_SERVICE,
             VEIDES_TRAILS_SERVICE,
             VEIDES_EVENT_SERVICE,
+            VEIDES_METHOD_COMPLETED_SERVICE,
         ]
 
         for service in required_services:
-            rospy.loginfo("Waiting for service {}".format(service))
-            rospy.wait_for_service(service)
-            rospy.loginfo("Service {} is ready".format(service))
+            self._wait_for_service(service)
 
         veides_facts = rospy.ServiceProxy(VEIDES_FACTS_SERVICE, Facts)
         veides_trails = rospy.ServiceProxy(VEIDES_TRAILS_SERVICE, Trails)
@@ -42,11 +51,31 @@ class VeidesBotPlatformNode:
         twist = rospy.Publisher('/veidesbot/cmd_vel', Twist, queue_size=5)
 
         self.action_completed = rospy.ServiceProxy(VEIDES_ACTION_COMPLETED_SERVICE, ActionCompleted)
+        self.method_completed = rospy.ServiceProxy(VEIDES_METHOD_COMPLETED_SERVICE, MethodCompleted)
 
         self.bot = VeidesBotPlatform(twist, veides_facts, veides_trails, veides_event)
 
         rospy.Subscriber('/veides/agent/veidesbot/action_received', Action, self.on_action)
         rospy.Subscriber('/veidesbot/distance_sensor', Range, self.on_distance_updated)
+
+        register_method = rospy.ServiceProxy('/veides/agent/veidesbot/register_method', RegisterMethod)
+
+        # Register shutdown method using custom message and service classes
+        register_method(RegisterMethodRequest(
+            name='shutdown',
+            data_message='veidesbot_platform.msg.ShutdownMethod',
+            response_service='veidesbot_platform.srv.ShutdownMethodCompleted'
+        ))
+        # Wait for shutdown method complete service to be created
+        self._wait_for_service(VEIDES_SHUTDOWN_METHOD_COMPLETED_SERVICE)
+        # Subscribe to incoming shutdown method topic
+        rospy.Subscriber('/veides/agent/veidesbot/method/shutdown', ShutdownMethod, self.on_shutdown_method)
+        # Create service proxy to send shutdown method response when it is completed
+        self.shutdown_completed = rospy.ServiceProxy(VEIDES_SHUTDOWN_METHOD_COMPLETED_SERVICE, ShutdownMethodCompleted)
+
+        # Subscribe to any other method invoked
+        # The payload incoming is a JSON serialized to string
+        rospy.Subscriber('/veides/agent/veidesbot/method_invoked', Method, self.on_method)
 
         self.tick = 0
 
@@ -60,6 +89,31 @@ class VeidesBotPlatformNode:
 
         self.action_completed(action.name)
 
+    def on_method(self, method):
+        payload = json.loads(method.payload)
+
+        self.method_completed(MethodCompletedRequest(
+            name=method.name,
+            payload=json.dumps({
+                'received_payload': payload
+            }),
+            code=200
+        ))
+
+    def on_shutdown_method(self, shutdown):
+        format = '%Y-%m-%dT%H:%M:%S'
+        now = datetime.now()
+
+        if shutdown.time == "now":
+            time = now
+        else:
+            time = datetime.strptime(shutdown.time, format)
+
+        if now > time:
+            time = now
+
+        self.shutdown_completed(time=time.strftime(format), code=200)
+
     def on_distance_updated(self, data):
         self.bot.on_distance_updated(data.range)
 
@@ -71,6 +125,11 @@ class VeidesBotPlatformNode:
         if self.tick % 10 == 0:
             seconds = self.tick / 10
             self.bot.on_tick(seconds)
+
+    def _wait_for_service(self, service):
+        rospy.loginfo("Waiting for service {}".format(service))
+        rospy.wait_for_service(service)
+        rospy.loginfo("Service {} is ready".format(service))
 
 
 if __name__ == '__main__':

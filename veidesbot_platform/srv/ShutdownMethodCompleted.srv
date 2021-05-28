@@ -1,0 +1,4 @@
+string time
+uint16 code
+---
+uint8 rc
